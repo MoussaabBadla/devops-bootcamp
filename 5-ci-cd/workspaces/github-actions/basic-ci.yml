@@ -1,0 +1,33 @@
+name: basic-ci
+
+# Trigger on push to main branch
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Get the code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      # Step 2: Prepare Node.js
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      # Step 3: Install libraries
+      - name: Install Dependencies
+        run: npm install
+        
+      # Step 4: Run our tests
+      - name: Run Tests
+        run: npm test
+        
+      # Step 5: Build (if needed)
+      - name: Build App
+        run: npm run build

@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_IMAGE = "your-username/ci-cd-sample-app"
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_CREDENTIALS = credentials('docker-hub-credentials')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                script {
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    docker.build("${DOCKER_IMAGE}:latest")
+                }
+            }
+        }
+        
+        stage('Test in Container') {
+            steps {
+                echo 'Running tests in container...'
+                script {
+                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").inside {
+                        sh 'npm test'
+                    }
+                }
+            }
+        }
+        
+        stage('Push to Registry') {
+            steps {
+                echo 'Pushing to Docker Hub...'
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                        docker.image("${DOCKER_IMAGE}:latest").push()
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo 'Deploying to production...'
+                // Add your deployment commands here
+                sh 'echo "Deploy to Cloud Run, Kubernetes, etc."'
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Cleaning up Docker images...'
+            sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true"
+            cleanWs()
+        }
+        success {
+            echo '✅ Pipeline successful!'
+            // Send notification (Slack, email, etc.)
+        }
+        failure {
+            echo '❌ Pipeline failed!'
+            // Send failure notification
+        }
+    }
+}
